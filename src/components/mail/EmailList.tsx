@@ -71,17 +71,17 @@ export function EmailList({
                 className={cn(
                   "mail-preview-card group relative flex w-full items-start gap-3 px-3 text-left transition-[background,border-color,box-shadow,transform] duration-300",
                   active
-                    ? "-translate-y-px border-white/25 bg-[rgba(126,126,138,0.42)] py-2 shadow-[0_18px_42px_rgba(22,22,28,0.3),0_0_0_1px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.2)]"
+                    ? "-translate-y-px border-white/15 bg-[oklch(0.38_0.007_270/0.55)] py-2 shadow-[0_18px_42px_oklch(0_0_0/0.35),0_0_0_1px_oklch(1_0_0/0.07),inset_0_1px_0_oklch(1_0_0/0.14)]"
                     : "py-2.5",
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="email-active"
-                    className="pointer-events-none absolute inset-0 rounded-[14px] ring-1 ring-white/20"
+                    className="pointer-events-none absolute inset-0 rounded-[14px] ring-1 ring-white/12"
                     style={{
                       background:
-                        "radial-gradient(circle at 18% 22%, rgba(255,255,255,0.18), transparent 34%), linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04) 42%, rgba(255,255,255,0.015))",
+                        "radial-gradient(circle at 18% 22%, oklch(1 0 0 / 0.12), transparent 36%), linear-gradient(135deg, oklch(1 0 0 / 0.08), oklch(1 0 0 / 0.025) 44%, oklch(1 0 0 / 0.01))",
                     }}
                     transition={{ type: "spring", stiffness: 400, damping: 32 }}
                   />
