@@ -201,7 +201,7 @@
     top: 58px;
     width: 150px;
     height: 190px;
-    background: oklch(0.6 0.008 270 / 0.10);
+    background: oklch(0.6 0.008 270 / 0.1);
   }
   .mail-list-atmosphere::after {
     right: -58px;
@@ -211,7 +211,7 @@
     background: oklch(0.45 0.008 270 / 0.12);
   }
   .mail-preview-card {
-    background: oklch(0.30 0.006 270 / 0.42);
+    background: oklch(0.3 0.006 270 / 0.42);
     backdrop-filter: blur(20px) saturate(150%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
     border: 1px solid oklch(1 0 0 / 0.08);
