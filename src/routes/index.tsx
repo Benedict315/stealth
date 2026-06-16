@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AmbientBackground } from "@/components/mail/AmbientBackground";
 import { Sidebar } from "@/components/mail/Sidebar";
 import { Topbar } from "@/components/mail/Topbar";
@@ -22,6 +22,7 @@ import { usePreferences } from "@/features/preferences";
 import { CalendarWorkspace, useCalendar } from "@/features/calendar";
 import { FeedbackViewport } from "@/features/design-system/feedback/feedback-viewport";
 import { useFeedback } from "@/features/design-system/feedback/use-feedback";
+import { OnboardingModal, draftToMailboxPolicy, type OnboardingDraft } from "@/features/onboarding";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,7 +57,49 @@ function MailApp() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarEventId, setCalendarEventId] = useState<string | null>(null);
   const [calendarCreateRequest, setCalendarCreateRequest] = useState(0);
-  const { preferences, setPreferences } = usePreferences();
+  const { preferences, setPreferences, hydrated } = usePreferences();
+
+  // Gate: show onboarding only after localStorage has been read (hydrated) and only
+  // when it has not been completed in a previous session.
+  const showOnboarding = hydrated && !preferences.onboardingCompleted;
+
+  /**
+   * Called by OnboardingModal once all 7 steps are complete.
+   * 1. Submits the mailbox policy to the protocol API.
+   * 2. Merges the draft into local UiPreferences so Settings reflects the same values.
+   * Errors propagate back to PolicyReviewStep for inline display (no silent swallow).
+   */
+  const handleOnboardingComplete = useCallback(
+    async (walletAddress: string, draft: OnboardingDraft) => {
+      const policy = draftToMailboxPolicy(draft);
+
+      const response = await fetch(`/api/v1/policies/${walletAddress}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-stealth-address": walletAddress,
+        },
+        body: JSON.stringify(policy),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const message =
+          (body as { error?: { message?: string } }).error?.message ??
+          `Policy submission failed (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      setPreferences((prev) => ({
+        ...prev,
+        unknownSenders: draft.unknownSenderRule,
+        minimumPostage: draft.minimumPostage,
+        receiptOnDelivery: draft.receiptOnDelivery,
+        onboardingCompleted: true,
+      }));
+    },
+    [setPreferences],
+  );
   const calendar = useCalendar();
   const { dismiss: dismissFeedback, items: feedbackItems, notify: showToast } = useFeedback();
 
@@ -373,6 +416,8 @@ function MailApp() {
       />
 
       <FeedbackViewport items={feedbackItems} onDismiss={dismissFeedback} />
+
+      <OnboardingModal open={showOnboarding} onComplete={handleOnboardingComplete} />
     </div>
   );
 }
