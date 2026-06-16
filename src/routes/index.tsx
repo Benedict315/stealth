@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LandingScreen } from "@/components/landing/LandingScreen";
 import { AmbientBackground } from "@/components/mail/AmbientBackground";
 import { BulkConfirmDialog } from "@/components/mail/BulkConfirmDialog";
 import { Sidebar } from "@/components/mail/Sidebar";
@@ -44,14 +45,24 @@ import {
   type SenderPolicyChoice,
 } from "@/features/sender-conversion";
 import {
+  CommandPalette,
+  ShortcutOverlay,
+  getShortcutAction,
+  type CommandId,
+  type ShortcutActionId,
+} from "@/features/command-palette";
+import {
   SnoozeDialog,
+  buildSnoozeState,
   formatSnoozeSummary,
+  getSnoozePreset,
   snoozePatch,
   unsnoozePatch,
   useSnooze,
   type SnoozeTarget,
 } from "@/features/snooze";
 import type { SnoozeState } from "@/components/mail/data";
+import { useFreighter } from "@/features/onboarding/useFreighter";
 import { useIsMobile } from "@/lib/use-media-query";
 
 export const Route = createFileRoute("/")({
@@ -114,6 +125,7 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
     size: string;
     type: string;
   } | null>(null);
+  const [shortcutOverlayOpen, setShortcutOverlayOpen] = useState(false);
 
   const calendar = useCalendar();
   const { dismiss: dismissFeedback, items: feedbackItems, notify: showToast } = useFeedback();
@@ -135,13 +147,8 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
   );
   const visibleEmails = useMemo(() => getEmailsForFolder(emails, folder), [emails, folder]);
   const selected = emails.find((e) => e.id === selectedId) ?? null;
-  const selectedEmails = useMemo(
-    () =>
-      selectedIds
-        .map((id) => emails.find((email) => email.id === id))
-        .filter((email): email is Email => Boolean(email)),
-    [emails, selectedIds],
-  );
+  const snoozeEmail = emails.find((email) => email.id === snooze.target?.emailId) ?? null;
+  const selectedSnoozeState = snoozeEmail?.folder === "snoozed" ? snoozeEmail.snooze : undefined;
 
   const updateEmail = (id: string, patch: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -151,6 +158,19 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
     setComposeInitial(initial);
     setComposeOpen(true);
   };
+
+  const openSettings = useCallback(() => {
+    setSettingsSnapshot(preferences);
+    setSettingsOpen(true);
+  }, [preferences]);
+
+  const openCalendar = useCallback(
+    (eventId?: string | null) => {
+      setCalendarEventId(eventId ?? null);
+      setCalendarOpen(true);
+    },
+    [setCalendarEventId, setCalendarOpen],
+  );
 
   // Opening the flow is inert — it only puts the sender in focus. No policy
   // changes until the user explicitly confirms a choice in the dialog.
@@ -184,6 +204,19 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
   const handleUnsnooze = (e: Email) => {
     updateEmail(e.id, unsnoozePatch());
     showToast(`"${e.subject}" returned to your inbox`);
+  };
+
+  const applySenderCommand = (choice: SenderPolicyChoice, email: Email) => {
+    const result = resolveSenderConversion(email, choice);
+    updateEmail(email.id, result.patch);
+    showToast(result.toast.message, { tone: result.toast.tone });
+  };
+
+  const openQuickSnooze = (email: Email) => {
+    const now = new Date();
+    const remindAt = getSnoozePreset("tomorrow").resolve(now);
+    const state = buildSnoozeState("tomorrow", remindAt, now);
+    handleSnooze({ emailId: email.id, subject: email.subject }, state);
   };
 
   const handleArchive = (e: Email) => {
@@ -256,10 +289,7 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
     },
     getCalendarEvent: (e: Email) =>
       calendar.events.find((event) => event.sourceEmailId === e.id) ?? null,
-    onOpenCalendar: (eventId?: string) => {
-      setCalendarEventId(eventId ?? null);
-      setCalendarOpen(true);
-    },
+    onOpenCalendar: openCalendar,
     onCalendarResponseChange: calendar.updateResponse,
     onCalendarReminderChange: calendar.updateReminder,
     onPreviewAttachment: (attachment: { name: string; size: string; type: string }) =>
@@ -487,20 +517,137 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
+  const runCommand = useCallback(
+    (id: CommandId, overrideEmail?: Email) => {
+      const email = overrideEmail ?? selected;
+
+      switch (id) {
+        case "compose":
+          openCompose();
+          return;
+        case "open-calendar":
+          openCalendar(
+            email?.event
+              ? calendar.events.find((item) => item.sourceEmailId === email.id)?.id
+              : null,
+          );
+          return;
+        case "open-settings":
+          openSettings();
+          return;
+        case "open-shortcuts":
+          setShortcutOverlayOpen(true);
+          return;
+        case "go-inbox":
+          setCustomFolder(null);
+          setFolder("inbox");
+          return;
+        case "go-starred":
+          setCustomFolder(null);
+          setFolder("starred");
+          return;
+        case "go-sent":
+          setCustomFolder(null);
+          setFolder("sent");
+          return;
+        case "archive-thread":
+          if (email) handleArchive(email);
+          return;
+        case "approve-sender":
+          if (email) applySenderCommand("allow", email);
+          return;
+        case "block-sender":
+          if (email) applySenderCommand("block", email);
+          return;
+        case "quote-postage":
+          showToast(
+            `Minimum postage for ${email?.from ?? "this sender"} is ${preferences.minimumPostage} XLM`,
+          );
+          return;
+        case "inspect-proof":
+          if (email) showToast(`Proof ${deriveProof(email)} copied`);
+          return;
+        case "settle-delivery":
+          if (email) {
+            updateEmail(email.id, { receiptState: "sent", folder: "receipts" });
+            showToast(`Delivery settled for "${email.subject}"`);
+          }
+          return;
+        case "refund-postage":
+          if (email) {
+            updateEmail(email.id, {
+              folder: "spam",
+              labels: [...(email.labels ?? []), "Refunded"],
+            });
+            showToast(`Postage refunded for "${email.subject}"`);
+          }
+          return;
+        case "relay-diagnostics":
+          setCustomFolder(null);
+          setFolder("pending");
+          showToast("Relay diagnostics opened from Pending Proof");
+          return;
+      }
+    },
+    [
+      applySenderCommand,
+      calendar.events,
+      handleArchive,
+      openCalendar,
+      openCompose,
+      openSettings,
+      preferences.minimumPostage,
+      selected,
+      showToast,
+      updateEmail,
+    ],
+  );
+
+  const runShortcutAction = useCallback(
+    (action: ShortcutActionId) => {
+      switch (action) {
+        case "open-palette":
+          setPaletteOpen((open) => !open);
+          return;
+        case "open-shortcuts":
+          setShortcutOverlayOpen(true);
+          return;
+        case "compose":
+          runCommand("compose");
+          return;
+        case "archive-thread":
+          runCommand("archive-thread");
+          return;
+        case "snooze-thread":
+          if (selected) openQuickSnooze(selected);
+          return;
+        case "approve-sender":
+          runCommand("approve-sender");
+          return;
+        case "block-sender":
+          runCommand("block-sender");
+          return;
+        case "open-calendar":
+          runCommand("open-calendar");
+          return;
+        case "open-settings":
+          runCommand("open-settings");
+          return;
+      }
+    },
+    [openQuickSnooze, runCommand, selected],
+  );
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        openCompose();
-      }
+      const action = getShortcutAction(e);
+      if (!action) return;
+      e.preventDefault();
+      runShortcutAction(action);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, []);
+  }, [runShortcutAction]);
 
   useEffect(() => {
     if (customFolder) return;
@@ -544,10 +691,8 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar
             onOpenPalette={() => setPaletteOpen(true)}
-            onOpenSettings={() => {
-              setSettingsSnapshot(preferences);
-              setSettingsOpen(true);
-            }}
+            onOpenSettings={openSettings}
+            onOpenShortcuts={() => setShortcutOverlayOpen(true)}
             onImportContacts={() => setImportOpen(true)}
             onShowToast={showToast}
             filters={filters}
@@ -597,10 +742,7 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
               calendarEvents={calendar.visibleEvents}
               calendars={calendar.calendars}
               onShowToast={showToast}
-              onOpenCalendar={(eventId) => {
-                setCalendarEventId(eventId ?? null);
-                setCalendarOpen(true);
-              }}
+              onOpenCalendar={openCalendar}
               onCreateEvent={() => {
                 setCalendarEventId(null);
                 setCalendarOpen(true);
@@ -677,10 +819,11 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
           setSelectedId(email.id);
           setSelectedIds([]);
         }}
-        onOpenSettings={() => {
-          setSettingsSnapshot(preferences);
-          setSettingsOpen(true);
-        }}
+        onOpenSettings={openSettings}
+      />
+      <ShortcutOverlay
+        open={shortcutOverlayOpen}
+        onClose={() => setShortcutOverlayOpen(false)}
       />
       <CalendarWorkspace
         open={calendarOpen}
@@ -711,6 +854,14 @@ function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
         target={senderConversion.target}
         onConfirm={handleConvertSender}
         onClose={senderConversion.close}
+      />
+
+      <SnoozeDialog
+        target={snooze.target}
+        initialState={selectedSnoozeState}
+        events={calendar.events}
+        onConfirm={handleSnooze}
+        onClose={snooze.close}
       />
 
       <AttachmentPreviewDrawer
