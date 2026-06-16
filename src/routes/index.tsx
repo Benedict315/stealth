@@ -7,10 +7,10 @@ import { EmailList } from "@/components/mail/EmailList";
 import { EmailView } from "@/components/mail/EmailView";
 import { Compose, type ComposeSubmission } from "@/components/mail/Compose";
 import { RightPanel, type ContextAction } from "@/components/mail/RightPanel";
-import { CommandPalette } from "@/components/mail/CommandPalette";
 import { SettingsModal } from "@/components/mail/SettingsModal";
 import {
   defaultMailFilters,
+  deriveProof,
   emails as initialEmails,
   getEmailsForFolder,
   mailFolders,
@@ -30,6 +30,7 @@ import {
   type SenderConversionTarget,
   type SenderPolicyChoice,
 } from "@/features/sender-conversion";
+import { CommandPalette, type CommandId } from "@/features/command-palette";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -148,6 +149,84 @@ function MailApp() {
     const result = resolveSenderConversion(email, choice);
     updateEmail(email.id, result.patch);
     showToast(result.toast.message, { tone: result.toast.tone });
+  };
+
+  // The command palette acts as a control plane: each command id maps to a
+  // concrete effect on the shared state. Dangerous commands are already
+  // confirmed inside the palette before reaching here. `email` defaults to the
+  // current selection but can be overridden (e.g. inspecting a searched proof).
+  const runCommand = (id: CommandId, email: Email | null = selected) => {
+    switch (id) {
+      case "compose":
+        openCompose();
+        break;
+      case "go-inbox":
+        setFolder("inbox");
+        setCustomFolder(null);
+        break;
+      case "go-starred":
+        setFolder("starred");
+        setCustomFolder(null);
+        break;
+      case "go-sent":
+        setFolder("sent");
+        setCustomFolder(null);
+        break;
+      case "open-settings":
+        setSettingsOpen(true);
+        break;
+      case "archive-thread":
+        if (email) {
+          updateEmail(email.id, { folder: "archive" });
+          showToast(`Archived "${email.subject}"`);
+        }
+        break;
+      case "approve-sender":
+        if (email) {
+          updateEmail(email.id, resolveSenderConversion(email, "allow").patch);
+          showToast(`${email.from} is now a trusted contact`, { tone: "success" });
+        }
+        break;
+      case "block-sender":
+        if (email) {
+          updateEmail(email.id, resolveSenderConversion(email, "block").patch);
+          showToast(`${email.from} blocked — postage marked for refund`, { tone: "danger" });
+        }
+        break;
+      case "quote-postage":
+        if (email) {
+          showToast(`Postage for ${email.from}: ${preferences.minimumPostage} XLM minimum`, {
+            tone: "neutral",
+          });
+        }
+        break;
+      case "inspect-proof":
+        if (email) {
+          const proof = deriveProof(email);
+          void navigator.clipboard?.writeText(proof);
+          showToast(`Proof ${proof} copied to clipboard`, { tone: "neutral" });
+        }
+        break;
+      case "settle-delivery":
+        if (email) {
+          updateEmail(email.id, {
+            folder: "receipts",
+            labels: [...(email.labels ?? []).filter((l) => l !== "Settled"), "Settled"],
+          });
+          showToast(`Delivery settled for "${email.subject}"`, { tone: "success" });
+        }
+        break;
+      case "refund-postage":
+        if (email) {
+          updateEmail(email.id, { folder: "spam" });
+          showToast(`Postage refunded to ${email.from}`, { tone: "warning" });
+        }
+        break;
+      case "relay-diagnostics":
+        showToast("Relay Node 07 · 42ms round-trip · queue healthy", { tone: "neutral" });
+        break;
+    }
+    setPaletteOpen(false);
   };
 
   const quoteBody = (e: Email) =>
@@ -402,24 +481,20 @@ function MailApp() {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        onCompose={() => openCompose()}
+        context={{ email: selected, folder }}
+        emails={emails}
+        onRunCommand={runCommand}
         onNavigate={(f) => {
           setFolder(f);
           setCustomFolder(null);
         }}
-        onArchive={() => {
-          if (selected) {
-            emailActions.onArchive(selected);
-          }
-        }}
-        onOpenSettings={() => setSettingsOpen(true)}
-        emails={emails}
         onSelectEmail={(email) => {
           setCustomFolder(null);
           setFilters(defaultMailFilters);
           setFolder(email.folder);
           setSelectedId(email.id);
         }}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       <CalendarWorkspace
         open={calendarOpen}

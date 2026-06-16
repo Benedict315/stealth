@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { EventMailCard, type CalendarEvent, type CalendarResponse } from "@/features/calendar";
 import { OTPCard, detectOtp } from "@/features/otp";
 import { ConvertSenderButton, SenderBadge } from "@/features/sender-conversion";
-import type { Email } from "./data";
+import { deriveProof, isVerified, type Email } from "./data";
 
 export type EmailViewActions = {
   onReply?: (email: Email, body?: string) => void;
@@ -358,8 +358,8 @@ function ProtocolStatus({
   email: Email;
   onShowToast?: (message: string) => void;
 }) {
-  const verified = ["verified", "priority", "encrypted", "receipts"].includes(email.folder);
-  const proof = `${email.id.padStart(2, "0")}c7...${email.from.length.toString(16)}a9`;
+  const verified = isVerified(email);
+  const proof = deriveProof(email);
 
   return (
     <div className="mt-5 flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.08] bg-black/15 px-3 py-2">
