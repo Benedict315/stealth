@@ -84,8 +84,13 @@ export function EmailList({
   const allSelected = visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
   const someSelected = selectedVisibleIds.length > 0;
   const listRef = useRef<HTMLUListElement>(null);
+  const onSelectRef = useRef(onSelect);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const [lastAnchorId, setLastAnchorId] = useState<string | null>(null);
+
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  });
 
   useEffect(() => {
     onSelectionChangeRef.current = onSelectionChange;
@@ -126,6 +131,26 @@ export function EmailList({
     node.addEventListener("keydown", onKeyDown);
     return () => node.removeEventListener("keydown", onKeyDown);
   });
+
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[role="checkbox"], input, button[aria-label^="Select"]')) return;
+
+      const row = target.closest<HTMLElement>("[data-email-id]");
+      const id = row?.dataset.emailId;
+      if (!id || !node.contains(row)) return;
+
+      onSelectRef.current(id);
+    };
+
+    node.addEventListener("pointerdown", onPointerDown, true);
+    return () => node.removeEventListener("pointerdown", onPointerDown, true);
+  }, []);
 
   const toggleSelection = (id: string) => {
     const next = new Set(selectedIds);
@@ -253,6 +278,13 @@ export function EmailList({
         {filtered.map((e, idx) => {
           const active = selectedId === e.id || selectedIds.includes(e.id);
           const selected = selectedIds.includes(e.id);
+          const selectMessage = (shiftKey = false) => {
+            if (shiftKey && lastAnchorId) {
+              selectRange(e.id);
+            } else {
+              onSelect(e.id);
+            }
+          };
 
           if (useMobile) {
             return (
@@ -305,24 +337,14 @@ export function EmailList({
             >
               <div
                 className="flex items-start gap-2"
-                draggable={canDragEmail(e)}
-                onDragStart={(event) => {
-                  const ids = selectedIds.includes(e.id) ? selectedIds : [e.id];
-                  event.dataTransfer.setData("text/plain", JSON.stringify(ids));
-                  event.dataTransfer.effectAllowed = "move";
+                onPointerDown={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  if (target?.closest('[role="checkbox"], input, button[aria-label^="Select"]')) {
+                    return;
+                  }
+                  selectMessage(event.shiftKey);
                 }}
               >
-                {/* drag handle */}
-                {canDragEmail(e) && (
-                  <button
-                    type="button"
-                    aria-label="Drag to move"
-                    className="mt-2.5 cursor-grab touch-none opacity-0 group-hover:opacity-100 focus:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity shrink-0"
-                    tabIndex={-1}
-                  >
-                    <GripVertical className="h-3.5 w-3.5" />
-                  </button>
-                )}
                 <Checkbox
                   checked={selected}
                   aria-label={`Select ${e.from}: ${e.subject}`}
@@ -333,13 +355,8 @@ export function EmailList({
                   className="mt-2.5 border-white/15 bg-white/[0.035] data-[state=checked]:border-white/30"
                 />
                 <motion.button
-                  onClick={(event) => {
-                    if (event.shiftKey && lastAnchorId) {
-                      selectRange(e.id);
-                    } else {
-                      onSelect(e.id);
-                    }
-                  }}
+                  data-email-id={e.id}
+                  onClick={(event) => selectMessage(event.shiftKey)}
                   whileTap={{ scale: 0.975 }}
                   transition={{ type: "spring", stiffness: 520, damping: 30 }}
                   aria-selected={active}
