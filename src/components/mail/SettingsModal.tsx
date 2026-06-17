@@ -55,6 +55,9 @@ export function SettingsModal({
   onCancel,
   preferences,
   onChange,
+  layout,
+  onLayoutChange,
+  onResetLayout,
   onSave,
 }: {
   open: boolean;
@@ -466,19 +469,24 @@ function InboxSettings({
 
   const liveTemplate = findMailboxPolicyTemplate(currentDraft);
 
+  const selectedTemplate =
+    previewTemplateId === "custom"
+      ? null
+      : (MAILBOX_POLICY_TEMPLATES.find((template) => template.id === previewTemplateId) ?? null);
+
   const selectedPreview =
     previewTemplateId === "custom"
       ? (savedCustomTemplate ??
         buildCustomMailboxPolicyTemplate(currentDraft, liveTemplate?.id ?? null))
-      : (MAILBOX_POLICY_TEMPLATES.find((template) => template.id === previewTemplateId) ?? null);
+      : selectedTemplate;
 
   const selectedPreferences =
     previewTemplateId === "custom"
       ? savedCustomTemplate
         ? savedCustomTemplateToPreferences(savedCustomTemplate)
         : currentDraft
-      : selectedPreview
-        ? templateToPreferences(selectedPreview)
+      : selectedTemplate
+        ? templateToPreferences(selectedTemplate)
         : currentDraft;
 
   const previewMatchesCurrent =
@@ -487,8 +495,8 @@ function InboxSettings({
         ? savedCustomTemplate.policy.unknownSenders === preferences.unknownSenders &&
           savedCustomTemplate.policy.minimumPostage === preferences.minimumPostage
         : true
-      : selectedPreview
-        ? mailboxPolicyTemplateMatchesPreferences(selectedPreview, currentDraft)
+      : selectedTemplate
+        ? mailboxPolicyTemplateMatchesPreferences(selectedTemplate, currentDraft)
         : false;
 
   const applyingWillReplaceCurrent =
@@ -496,13 +504,11 @@ function InboxSettings({
       ? !!savedCustomTemplate && !previewMatchesCurrent
       : !previewMatchesCurrent;
 
-  const handleTemplateChange = (id: MailboxPolicyTemplateId) => {
+  const handleTemplateChange = (id: MailboxPolicyTemplateId | "custom") => {
     setPreviewTemplateId(id);
   };
 
   const handleApply = () => {
-    if (!selectedPreview) return;
-
     if (previewTemplateId === "custom") {
       if (!savedCustomTemplate) {
         setSavedCustomTemplate(
@@ -518,9 +524,11 @@ function InboxSettings({
       return;
     }
 
+    if (!selectedTemplate) return;
+
     onChange({
       ...preferences,
-      ...templateToPreferences(selectedPreview),
+      ...templateToPreferences(selectedTemplate),
     });
   };
 
@@ -1307,7 +1315,6 @@ function LayoutSettings({
     </div>
   );
 }
-
 
 function SettingsToggle({
   label,
