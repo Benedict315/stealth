@@ -139,3 +139,33 @@ export {
   validateProofRecord,
 } from "./proofFormatting";
 export { demoProofRecords } from "./fixtures/proofRecordFixtures";
+
+// Audience segment editor
+export { AudienceSegmentEditor } from "./components/AudienceSegmentEditor";
+export type {
+  EditableSegment,
+  SegmentEditorState,
+  SegmentFieldError,
+  SegmentValidationResult,
+} from "./types/segmentEditorState";
+export { defaultPersonas, PERSONAS_BY_ID } from "./fixtures/personaFixtures";
+export {
+  filterPersonas,
+  getPersonasForSegment,
+  assignPersonaToSegment,
+  removePersonaFromSegment,
+  isPersonaAssigned,
+} from "./utils/personaHelpers";
+export {
+  initEditorState,
+  updateSegmentLabel,
+  updateSegmentDescription,
+  addCriteria,
+  removeCriteria,
+  validateSegment,
+} from "./utils/segmentEditorHelpers";
+export {
+  saveSegmentEditorState,
+  loadSegmentEditorState,
+  clearSegmentEditorState,
+} from "./persistence/localStorageAdapter";
