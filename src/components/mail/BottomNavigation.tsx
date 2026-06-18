@@ -1,12 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  Pencil,
-  Search,
-  Inbox,
-  Calendar,
-  ReceiptText,
-  Settings,
-} from "lucide-react";
+import { Pencil, Search, Inbox, Calendar, ReceiptText, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MailFolder } from "./data";
 
@@ -88,13 +81,13 @@ export function BottomNavigation({
                 <Icon
                   className={cn(
                     "h-6 w-6 transition-colors",
-                    item.isActive ? "text-foreground" : "text-muted-foreground"
+                    item.isActive ? "text-foreground" : "text-muted-foreground",
                   )}
                 />
                 <span
                   className={cn(
                     "text-[10px] font-medium transition-colors",
-                    item.isActive ? "text-foreground" : "text-muted-foreground"
+                    item.isActive ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {item.label}
