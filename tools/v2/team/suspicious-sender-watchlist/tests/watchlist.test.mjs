@@ -338,10 +338,7 @@ describe("Suspicious Sender Watchlist — Service", () => {
 
   it("updateRisk throws for unknown id", async () => {
     const svc = createService();
-    await assert.rejects(
-      () => svc.updateRisk({ id: "watch-999", riskLevel: "low" }),
-      /not found/,
-    );
+    await assert.rejects(() => svc.updateRisk({ id: "watch-999", riskLevel: "low" }), /not found/);
   });
 
   it("dismissEntry sets status=dismissed", async () => {

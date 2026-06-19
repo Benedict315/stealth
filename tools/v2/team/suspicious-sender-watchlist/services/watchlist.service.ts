@@ -167,7 +167,16 @@ export function createWatchlistService(config: WatchlistServiceConfig = {}) {
     return computeMetrics(entries);
   }
 
-  return { getEntries, addEntry, updateRisk, dismissEntry, removeEntry, getMetrics, computeMetrics, applyFilter };
+  return {
+    getEntries,
+    addEntry,
+    updateRisk,
+    dismissEntry,
+    removeEntry,
+    getMetrics,
+    computeMetrics,
+    applyFilter,
+  };
 }
 
 export type WatchlistService = ReturnType<typeof createWatchlistService>;

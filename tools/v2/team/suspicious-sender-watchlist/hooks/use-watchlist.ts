@@ -29,10 +29,7 @@ import type {
   WatchlistFilter,
   WatchlistMetrics,
 } from "../types";
-import {
-  createWatchlistService,
-  type WatchlistService,
-} from "../services/watchlist.service";
+import { createWatchlistService, type WatchlistService } from "../services/watchlist.service";
 
 interface WatchlistState {
   entries: FetchState<WatchlistEntry[]>;

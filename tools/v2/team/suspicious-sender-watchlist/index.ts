@@ -28,7 +28,11 @@ export { useWatchlist } from "./hooks/use-watchlist";
 export type { UseWatchlistReturn, UseWatchlistOptions } from "./hooks/use-watchlist";
 
 // Fixtures
-export { WATCHLIST_FIXTURES, ACTIVE_FIXTURES, HIGH_RISK_FIXTURES } from "./fixtures/watchlist.fixtures";
+export {
+  WATCHLIST_FIXTURES,
+  ACTIVE_FIXTURES,
+  HIGH_RISK_FIXTURES,
+} from "./fixtures/watchlist.fixtures";
 
 // UI Components
 export {
