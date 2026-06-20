@@ -3,6 +3,7 @@ import type { CampaignSnapshot } from "../types/campaignSnapshot";
 import {
   CAMPAIGN_EXPORT_SCHEMA_VERSION,
   type CampaignSnapshotExport,
+  type CampaignSnapshotExportInput,
 } from "../types/campaignExport";
 
 const DEFAULT_INDENT = 2;
@@ -31,7 +32,7 @@ function normalizeTags(tags: string[]): string[] {
  * sorted deterministically and only known fields are copied, so stray
  * properties never leak into a shared export.
  */
-export function buildCampaignExport(snapshot: CampaignSnapshot): CampaignSnapshotExport {
+export function buildCampaignExport(snapshot: CampaignSnapshotExportInput): CampaignSnapshotExport {
   const drafts = normalizeDrafts(snapshot.drafts);
   return {
     version: CAMPAIGN_EXPORT_SCHEMA_VERSION,
@@ -53,7 +54,7 @@ export function buildCampaignExport(snapshot: CampaignSnapshot): CampaignSnapsho
  * output ends with a trailing newline so it reads cleanly when written to a file.
  */
 export function serializeCampaignSnapshot(
-  snapshot: CampaignSnapshot,
+  snapshot: CampaignSnapshotExportInput,
   indent: number = DEFAULT_INDENT,
 ): string {
   return `${JSON.stringify(buildCampaignExport(snapshot), null, indent)}\n`;
@@ -65,7 +66,7 @@ export function serializeCampaignSnapshot(
  * explicitly so callers (and tests) stay deterministic.
  */
 export function buildCampaignExportFilename(
-  snapshot: CampaignSnapshot,
+  snapshot: CampaignSnapshotExportInput,
   date: Date,
   prefix: string = DEFAULT_FILENAME_PREFIX,
 ): string {

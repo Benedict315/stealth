@@ -4,6 +4,11 @@ import type { CampaignSnapshot } from "./campaignSnapshot";
 /** Current schema version for an exported campaign snapshot payload. */
 export const CAMPAIGN_EXPORT_SCHEMA_VERSION = 1;
 
+/** Snapshot input accepted by export helpers; status may be absent on legacy data. */
+export type CampaignSnapshotExportInput = Omit<CampaignSnapshot, "status"> & {
+  status?: CampaignSnapshot["status"];
+};
+
 /**
  * Campaign metadata included in an export, kept separate from the drafts so the
  * envelope stays easy to review and re-import.

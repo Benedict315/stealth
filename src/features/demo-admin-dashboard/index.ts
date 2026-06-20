@@ -21,6 +21,16 @@ export {
 
 export { defaultCampaignSnapshots } from "./fixtures/campaignSnapshotFixtures";
 export { defaultCampaignTags } from "./fixtures/campaignTagFixtures";
+export {
+  getSenderRecoveryOutcomeSummary,
+  senderRecoveryCampaignPreset,
+  senderRecoveryRequestStates,
+  validateSenderRecoveryCampaignPreset,
+} from "./fixtures/senderRecoveryCampaignPreset";
+export type {
+  SenderRecoveryRequestState,
+  SenderRecoveryRequestStatus,
+} from "./fixtures/senderRecoveryCampaignPreset";
 
 export type {
   AdminDashboardBreakpoint,
@@ -56,8 +66,28 @@ export {
 } from "./constants/displayTokens";
 
 export { CampaignTagManager } from "./components/CampaignTagManager";
+export { CampaignListTable } from "./components/CampaignListTable";
+export type { CampaignListTableProps } from "./components/CampaignListTable";
 export { MockPublishPanel } from "./components/MockPublishPanel";
 export type { MockPublishPanelProps } from "./components/MockPublishPanel";
+export { CampaignDiffPanel } from "./components/CampaignDiffPanel";
+export type { CampaignDiffPanelProps } from "./components/CampaignDiffPanel";
+export {
+  buildCampaignListRows,
+  clearCampaignSelection,
+  defaultCampaignListSort,
+  nextCampaignListSort,
+  selectAllCampaigns,
+  summarizeCampaignSelection,
+  toggleCampaignSelection,
+} from "./campaignListTable";
+export type {
+  CampaignListRow,
+  CampaignListSelectionSummary,
+  CampaignListSort,
+  CampaignListSortDirection,
+  CampaignListSortKey,
+} from "./campaignListTable";
 export {
   canRetryMockPublish,
   canRollbackMockPublish,
@@ -72,6 +102,19 @@ export type {
   MockPublishStatus,
   MockPublishStep,
 } from "./mockPublishWorkflow";
+export {
+  compareCampaignSnapshots,
+  formatCampaignDiffSummary,
+  getCampaignDiffEntriesByKind,
+  summarizeCampaignDiff,
+} from "./campaignDiff";
+export type {
+  CampaignDiffEntry,
+  CampaignDiffKind,
+  CampaignDiffResult,
+  CampaignDiffSection,
+  CampaignDiffSummary,
+} from "./campaignDiff";
 
 export {
   createTag,
@@ -415,6 +458,20 @@ export {
 } from "./types/calendarEvent";
 export { calendarEventFixtures, defaultCalendarEvent } from "./fixtures/calendarEventFixtures";
 export { validateCalendarEventEditor } from "./calendarEventValidation";
+
+// Label manager (issue #185): types, helpers, fixtures, and UI.
+export type { DemoLabel, LabeledDemoMessage, LabelUsage } from "./labels/types";
+export {
+  addLabel,
+  countLabelUsage,
+  createLabel,
+  normalizeLabelName,
+  removeLabel,
+  toLabelId,
+  unusedLabels,
+} from "./labels/labelNormalization";
+export { demoLabels, labeledDemoMessages } from "./labels/labelFixtures";
+export { LabelManager } from "./labels/LabelManager";
 
 // Draft dataset JSON import (issue #272): JSON -> safe drafts mapper with error output.
 export { mapImportedDataset, parseDatasetImport } from "./helpers/datasetImport";
