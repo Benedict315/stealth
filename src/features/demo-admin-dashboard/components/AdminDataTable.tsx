@@ -98,7 +98,13 @@ export function AdminDataTable<T>({
                 <th
                   key={col.key}
                   aria-sort={
-                    !col.sortable ? undefined : !isSorted ? "none" : sortDirection === "asc" ? "ascending" : "descending"
+                    !col.sortable
+                      ? undefined
+                      : !isSorted
+                        ? "none"
+                        : sortDirection === "asc"
+                          ? "ascending"
+                          : "descending"
                   }
                   className="px-4 py-3 font-medium text-muted-foreground select-none"
                 >
@@ -154,7 +160,9 @@ export function AdminDataTable<T>({
                   aria-selected={isSelected ? "true" : undefined}
                   className={cn(
                     "border-b border-white/[0.04] last:border-0 transition-colors",
-                    isClickable ? "cursor-pointer hover:bg-white/[0.02] focus-visible:outline-none focus-visible:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/20" : "",
+                    isClickable
+                      ? "cursor-pointer hover:bg-white/[0.02] focus-visible:outline-none focus-visible:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/20"
+                      : "",
                     isSelected ? "bg-white/[0.04]" : "",
                   )}
                 >
