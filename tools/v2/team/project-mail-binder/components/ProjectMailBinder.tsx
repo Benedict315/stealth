@@ -99,7 +99,8 @@ export function ProjectMailBinder({ initialState }: { initialState: BinderState 
 
         {state.status === "success" && !selectedProject && (
           <ProjectList
-            projects={state.projects}
+            projects={state.projects as any}
+            getMailCountForProject={(id) => state.projects.find(p => p.id === id)?.mailCount ?? 0}
             selectedProjectId={selectedProjectId}
             onSelectProject={setSelectedProjectId}
           />
