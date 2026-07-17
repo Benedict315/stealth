@@ -88,18 +88,28 @@ function validateSourceMessage(
     return { valid: false, invalidFields };
   }
 
+  const id = value.id as string;
+  const type = value.type as "email";
+  const from = value.from as string;
+  const subject = value.subject as string;
+  const receivedAt = value.receivedAt as string;
+  const hasListUnsubscribeHeader = value.hasListUnsubscribeHeader as boolean;
+  const bodyContainsUnsubscribeLink = value.bodyContainsUnsubscribeLink as boolean;
+  const isTransactional = value.isTransactional as boolean;
+  const linkHost = value.linkHost as string | null;
+
   return {
     valid: true,
     message: {
-      id: value.id,
-      type: "email",
-      from: value.from,
-      subject: value.subject,
-      receivedAt: value.receivedAt,
-      hasListUnsubscribeHeader: value.hasListUnsubscribeHeader,
-      bodyContainsUnsubscribeLink: value.bodyContainsUnsubscribeLink,
-      isTransactional: value.isTransactional,
-      linkHost: value.linkHost,
+      id,
+      type,
+      from,
+      subject,
+      receivedAt,
+      hasListUnsubscribeHeader,
+      bodyContainsUnsubscribeLink,
+      isTransactional,
+      linkHost,
     },
   };
 }
