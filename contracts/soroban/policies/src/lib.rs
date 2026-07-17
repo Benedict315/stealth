@@ -789,3 +789,142 @@ mod test {
             .is_ok());
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::Env;
+
+    proptest! {
+        #[test]
+        fn property_blocked_sender_is_never_allowed(
+            postage in 0i128..10_000_000_000i128,
+            verified in any::<bool>(),
+            receipt in any::<bool>(),
+            allow_unknown in any::<bool>(),
+            require_verified in any::<bool>(),
+            require_receipt in any::<bool>(),
+            minimum_postage in 0i128..10_000i128,
+            has_tier in any::<bool>(),
+            tier_postage in 0i128..10_000i128,
+        ) {
+            let env = Env::default();
+            env.mock_all_auths();
+            let contract_id = env.register(PoliciesContract, ());
+            let client = PoliciesContractClient::new(&env, &contract_id);
+            let owner = Address::generate(&env);
+            let sender = Address::generate(&env);
+
+            client.set_policy(
+                &owner,
+                &MailboxPolicy {
+                    allow_unknown,
+                    require_verified,
+                    require_receipt,
+                    minimum_postage,
+                },
+            );
+
+            if has_tier {
+                client.set_sender_tier(&owner, &sender, &tier_postage);
+            }
+            client.set_sender_rule(&owner, &sender, &SenderRule::Block);
+
+            let decision = client.evaluate(&owner, &sender, &verified, &postage, &receipt);
+            prop_assert!(!decision.allowed);
+            prop_assert_eq!(decision.reason, PolicyReason::SenderBlocked);
+        }
+
+        #[test]
+        fn property_allowed_sender_is_always_allowed(
+            postage in 0i128..10_000_000_000i128,
+            verified in any::<bool>(),
+            receipt in any::<bool>(),
+            allow_unknown in any::<bool>(),
+            require_verified in any::<bool>(),
+            require_receipt in any::<bool>(),
+            minimum_postage in 0i128..10_000i128,
+            has_tier in any::<bool>(),
+            tier_postage in 0i128..10_000i128,
+        ) {
+            let env = Env::default();
+            env.mock_all_auths();
+            let contract_id = env.register(PoliciesContract, ());
+            let client = PoliciesContractClient::new(&env, &contract_id);
+            let owner = Address::generate(&env);
+            let sender = Address::generate(&env);
+
+            client.set_policy(
+                &owner,
+                &MailboxPolicy {
+                    allow_unknown,
+                    require_verified,
+                    require_receipt,
+                    minimum_postage,
+                },
+            );
+
+            if has_tier {
+                client.set_sender_tier(&owner, &sender, &tier_postage);
+            }
+            client.set_sender_rule(&owner, &sender, &SenderRule::Allow);
+
+            let decision = client.evaluate(&owner, &sender, &verified, &postage, &receipt);
+            prop_assert!(decision.allowed);
+            prop_assert_eq!(decision.reason, PolicyReason::SenderAllowed);
+        }
+        
+        #[test]
+        fn property_tier_satisfaction_trumps_default_policy(
+            postage in 0i128..10_000_000_000i128,
+            verified in any::<bool>(),
+            receipt in any::<bool>(),
+            allow_unknown in any::<bool>(),
+            require_verified in any::<bool>(),
+            require_receipt in any::<bool>(),
+            minimum_postage in 0i128..10_000i128,
+            tier_postage in 0i128..10_000_000_000i128,
+        ) {
+            let env = Env::default();
+            env.mock_all_auths();
+            let contract_id = env.register(PoliciesContract, ());
+            let client = PoliciesContractClient::new(&env, &contract_id);
+            let owner = Address::generate(&env);
+            let sender = Address::generate(&env);
+
+            client.set_policy(
+                &owner,
+                &MailboxPolicy {
+                    allow_unknown,
+                    require_verified,
+                    require_receipt,
+                    minimum_postage,
+                },
+            );
+
+            // Using tier implies SenderRule::Default is active
+            client.set_sender_tier(&owner, &sender, &tier_postage);
+
+            // Tier evaluation happens after verification & receipt checks.
+            let decision = client.evaluate(&owner, &sender, &verified, &postage, &receipt);
+            
+            if require_verified && !verified {
+                prop_assert!(!decision.allowed);
+                prop_assert_eq!(decision.reason, PolicyReason::VerificationRequired);
+            } else if require_receipt && !receipt {
+                prop_assert!(!decision.allowed);
+                prop_assert_eq!(decision.reason, PolicyReason::ReceiptRequired);
+            } else {
+                if postage >= tier_postage {
+                    prop_assert!(decision.allowed);
+                    prop_assert_eq!(decision.reason, PolicyReason::TierSatisfied);
+                } else {
+                    prop_assert!(!decision.allowed);
+                    prop_assert_eq!(decision.reason, PolicyReason::InsufficientPostage);
+                }
+            }
+        }
+    }
+}
