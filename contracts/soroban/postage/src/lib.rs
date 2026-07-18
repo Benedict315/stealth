@@ -201,6 +201,23 @@ pub enum Error {
 
 #[contractimpl]
 impl PostageContract {
+    /// Initializes the contract configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `asset` - The token asset address accepted by the escrow.
+    /// * `treasury` - The treasury address where fees are collected.
+    /// * `minimum` - The minimum postage amount required. Must be non-negative.
+    /// * `fee_bps` - The contract fee in basis points (0 to 10,000).
+    /// * `expiry_seconds` - The duration in seconds after which the postage expires. Must be non-zero.
+    /// * `dispute_seconds` - The duration of the dispute window in seconds after expiry.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::AlreadyInitialized` - If the contract is already initialized.
+    /// * `Error::InvalidAmount` - If `minimum` is negative.
+    /// * `Error::InvalidFee` - If `fee_bps` exceeds 10,000.
+    /// * `Error::InvalidWindow` - If `expiry_seconds` is zero.
     pub fn initialize(
         env: Env,
         asset: Address,
@@ -237,6 +254,11 @@ impl PostageContract {
         Ok(())
     }
 
+    /// Configures the lifecycle guard contract address.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::AlreadyInitialized` - If a guard is already configured.
     pub fn configure_guard(env: Env, guard: Address) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Guard) {
             return Err(Error::AlreadyInitialized);
@@ -245,6 +267,11 @@ impl PostageContract {
         Ok(())
     }
 
+    /// Returns the configured guard contract address.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::GuardNotConfigured` - If no guard has been configured yet.
     pub fn guard(env: Env) -> Result<Address, Error> {
         env.storage()
             .instance()
@@ -252,14 +279,29 @@ impl PostageContract {
             .ok_or(Error::GuardNotConfigured)
     }
 
+    /// Returns the escrow configuration.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::NotInitialized` - If the contract is not initialized.
     pub fn config(env: Env) -> Result<EscrowConfig, Error> {
         Self::read_config(&env)
     }
 
+    /// Returns the minimum postage amount required.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::NotInitialized` - If the contract is not initialized.
     pub fn minimum(env: Env) -> Result<i128, Error> {
         Ok(Self::read_config(&env)?.minimum)
     }
 
+    /// Returns the postage quote for a sender.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::NotInitialized` - If the contract is not initialized.
     pub fn quote(env: Env, sender_trusted: bool) -> Result<i128, Error> {
         if sender_trusted {
             return Ok(0);
@@ -267,6 +309,20 @@ impl PostageContract {
         Self::minimum(env)
     }
 
+    /// Submits a postage payment for a message, escrowing the tokens.
+    ///
+    /// # Arguments
+    ///
+    /// * `message_id` - The 32-byte identifier of the message.
+    /// * `sender` - The address of the sender submitting the postage.
+    /// * `recipient` - The address of the message recipient.
+    /// * `amount` - The postage amount to escrow.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::NotInitialized` - If the contract is not initialized.
+    /// * `Error::InvalidAmount` - If the amount is less than the minimum required postage.
+    /// * `Error::DuplicateMessage` - If postage for this message has already been submitted.
     pub fn submit(
         env: Env,
         message_id: BytesN<32>,
@@ -312,6 +368,16 @@ impl PostageContract {
         Ok(postage)
     }
 
+    /// Marks the postage as expired if the expiry time has passed.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::PostageNotFound` - If no postage is found for the given message ID.
+    /// * `Error::AlreadyResolved` - If the postage status is already in a terminal state.
+    /// * `Error::DisputeUnavailable` - If the postage status is not pending.
+    /// * `Error::NotExpired` - If the current ledger time is before the expiry time.
+    /// * `Error::GuardNotConfigured` - If the guard contract is not configured.
+    /// * `Error::LifecycleRejected` - If the guard contract verification fails.
     pub fn expire(env: Env, message_id: BytesN<32>) -> Result<Postage, Error> {
         let key = DataKey::Postage(message_id.clone());
         let mut postage: Postage = env
@@ -343,6 +409,14 @@ impl PostageContract {
         Ok(postage)
     }
 
+    /// Settles the postage, transferring the amount (minus fee) to the recipient.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::PostageNotFound` - If no postage is found for the given message ID.
+    /// * `Error::AlreadyResolved` - If the postage is in a terminal state or has passed the reclaimable time.
+    /// * `Error::GuardNotConfigured` - If the guard contract is not configured.
+    /// * `Error::LifecycleRejected` - If the guard contract verification fails.
     pub fn settle(env: Env, message_id: BytesN<32>) -> Result<Postage, Error> {
         let key = DataKey::Postage(message_id.clone());
         let postage: Postage = env
@@ -364,6 +438,14 @@ impl PostageContract {
         Self::resolve(env, message_id, PostageStatus::Settled)
     }
 
+    /// Refunds the postage to the sender.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::PostageNotFound` - If no postage is found for the given message ID.
+    /// * `Error::AlreadyResolved` - If the postage is in a terminal state or has passed the reclaimable time.
+    /// * `Error::GuardNotConfigured` - If the guard contract is not configured.
+    /// * `Error::LifecycleRejected` - If the guard contract verification fails.
     pub fn refund(env: Env, message_id: BytesN<32>) -> Result<Postage, Error> {
         let key = DataKey::Postage(message_id.clone());
         let postage: Postage = env
@@ -385,6 +467,15 @@ impl PostageContract {
         Self::resolve(env, message_id, PostageStatus::Refunded)
     }
 
+    /// Disputes the postage payment.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::PostageNotFound` - If no postage is found for the given message ID.
+    /// * `Error::AlreadyResolved` - If the postage status is already in a terminal state.
+    /// * `Error::DisputeUnavailable` - If the current state cannot transition to disputed or is outside the dispute window.
+    /// * `Error::GuardNotConfigured` - If the guard contract is not configured.
+    /// * `Error::LifecycleRejected` - If the guard contract verification fails.
     pub fn dispute(env: Env, message_id: BytesN<32>) -> Result<Postage, Error> {
         let key = DataKey::Postage(message_id.clone());
         let mut postage: Postage = env
@@ -423,6 +514,15 @@ impl PostageContract {
         Ok(postage)
     }
 
+    /// Reclaims the escrowed postage to the sender after expiry and the dispute window have passed.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::PostageNotFound` - If no postage is found for the given message ID.
+    /// * `Error::AlreadyResolved` - If the postage status is already in a terminal state.
+    /// * `Error::NotExpired` - If the current ledger time is before the reclaimable time.
+    /// * `Error::GuardNotConfigured` - If the guard contract is not configured.
+    /// * `Error::LifecycleRejected` - If the guard contract verification fails.
     pub fn reclaim(env: Env, message_id: BytesN<32>) -> Result<Postage, Error> {
         let key = DataKey::Postage(message_id.clone());
         let mut postage: Postage = env
@@ -461,6 +561,11 @@ impl PostageContract {
         Ok(postage)
     }
 
+    /// Retrieves the postage record for the given message ID.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::PostageNotFound` - If no postage is found for the given message ID.
     pub fn get(env: Env, message_id: BytesN<32>) -> Result<Postage, Error> {
         env.storage()
             .persistent()
@@ -1438,6 +1543,219 @@ mod test {
 
         let expired = client.expire(&id(&setup.env, 1));
         assert_eq!(expired.status, PostageStatus::Expired);
+    }
+
+    #[test]
+    fn initialize_fails_if_already_initialized() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        let res = client.try_initialize(
+            &setup.asset,
+            &setup.treasury,
+            &100,
+            &0,
+            &86_400,
+            &3_600,
+        );
+        assert_eq!(res, Err(Ok(Error::AlreadyInitialized)));
+    }
+
+    #[test]
+    fn initialize_fails_on_invalid_arguments() {
+        let env = Env::default();
+        let contract_id = env.register(PostageContract, ());
+        let client = PostageContractClient::new(&env, &contract_id);
+        let asset = Address::generate(&env);
+        let treasury = Address::generate(&env);
+
+        // negative minimum
+        assert_eq!(
+            client.try_initialize(&asset, &treasury, &-1, &0, &86_400, &3_600),
+            Err(Ok(Error::InvalidAmount))
+        );
+
+        // fee_bps > 10_000
+        assert_eq!(
+            client.try_initialize(&asset, &treasury, &100, &10_001, &86_400, &3_600),
+            Err(Ok(Error::InvalidFee))
+        );
+
+        // expiry_seconds == 0
+        assert_eq!(
+            client.try_initialize(&asset, &treasury, &100, &0, &0, &3_600),
+            Err(Ok(Error::InvalidWindow))
+        );
+    }
+
+    #[test]
+    fn configure_guard_fails_if_already_configured() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        let another_guard = Address::generate(&setup.env);
+        assert_eq!(
+            client.try_configure_guard(&another_guard),
+            Err(Ok(Error::AlreadyInitialized))
+        );
+    }
+
+    #[test]
+    fn guard_fails_if_not_configured() {
+        let env = Env::default();
+        let contract_id = env.register(PostageContract, ());
+        let client = PostageContractClient::new(&env, &contract_id);
+        let asset = Address::generate(&env);
+        let treasury = Address::generate(&env);
+        client.initialize(&asset, &treasury, &100, &0, &86_400, &3_600);
+
+        assert_eq!(
+            client.try_guard(),
+            Err(Ok(Error::GuardNotConfigured))
+        );
+    }
+
+    #[test]
+    fn operations_fail_if_not_initialized() {
+        let env = Env::default();
+        let contract_id = env.register(PostageContract, ());
+        let client = PostageContractClient::new(&env, &contract_id);
+
+        assert!(client.try_config().is_err());
+        assert!(client.try_minimum().is_err());
+        assert!(client.try_quote(&false).is_err());
+        assert!(client.try_submit(&id(&env, 1), &Address::generate(&env), &Address::generate(&env), &100).is_err());
+    }
+
+    #[test]
+    fn submit_fails_on_insufficient_amount() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        assert_eq!(
+            client.try_submit(&id(&setup.env, 1), &setup.sender, &setup.recipient, &99),
+            Err(Ok(Error::InvalidAmount))
+        );
+    }
+
+    #[test]
+    fn submit_fails_on_duplicate_message() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        client.submit(&id(&setup.env, 1), &setup.sender, &setup.recipient, &100);
+        assert_eq!(
+            client.try_submit(&id(&setup.env, 1), &setup.sender, &setup.recipient, &100),
+            Err(Ok(Error::DuplicateMessage))
+        );
+    }
+
+    #[test]
+    fn operations_fail_if_postage_not_found() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        let missing_id = id(&setup.env, 99);
+
+        assert_eq!(client.try_get(&missing_id), Err(Ok(Error::PostageNotFound)));
+        assert_eq!(client.try_expire(&missing_id), Err(Ok(Error::PostageNotFound)));
+        assert_eq!(client.try_settle(&missing_id), Err(Ok(Error::PostageNotFound)));
+        assert_eq!(client.try_refund(&missing_id), Err(Ok(Error::PostageNotFound)));
+        assert_eq!(client.try_dispute(&missing_id), Err(Ok(Error::PostageNotFound)));
+        assert_eq!(client.try_reclaim(&missing_id), Err(Ok(Error::PostageNotFound)));
+    }
+
+    #[test]
+    fn dispute_fails_before_expiry() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        client.submit(&id(&setup.env, 1), &setup.sender, &setup.recipient, &100);
+        assert_eq!(
+            client.try_dispute(&id(&setup.env, 1)),
+            Err(Ok(Error::DisputeUnavailable))
+        );
+    }
+
+    #[test]
+    fn dispute_fails_if_dispute_window_disabled() {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().set_timestamp(10);
+        let admin = Address::generate(&env);
+        let asset = env.register_stellar_asset_contract_v2(admin).address();
+        let token_admin = token::StellarAssetClient::new(&env, &asset);
+        let sender = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        token_admin.mint(&sender, &1_000);
+
+        let policies = env.register(PoliciesContract, ());
+        let policies_client = PoliciesContractClient::new(&env, &policies);
+        policies_client.set_policy(
+            &recipient.clone(),
+            &MailboxPolicy {
+                allow_unknown: true,
+                require_verified: false,
+                require_receipt: false,
+                minimum_postage: 0,
+            },
+        );
+
+        let receipts = Address::generate(&env);
+        let lifecycle = env.register(LifecycleContract, ());
+        let lifecycle_client = LifecycleContractClient::new(&env, &lifecycle);
+
+        let contract_id = env.register(PostageContract, ());
+        let client = PostageContractClient::new(&env, &contract_id);
+        let treasury = Address::generate(&env);
+
+        client.initialize(&asset, &treasury, &100, &0, &30, &0);
+        client.configure_guard(&lifecycle);
+        lifecycle_client.initialize(&policies, &contract_id, &receipts);
+
+        client.submit(&id(&env, 1), &sender, &recipient, &100);
+        bind_lifecycle(&env, &lifecycle, id(&env, 1), &sender, &recipient, 100);
+
+        env.ledger().set_timestamp(40);
+        assert_eq!(
+            client.try_dispute(&id(&env, 1)),
+            Err(Ok(Error::DisputeUnavailable))
+        );
+    }
+
+    #[test]
+    fn guard_verification_fails_propagates_lifecycle_rejected() {
+        let setup = setup(0);
+        let client = PostageContractClient::new(&setup.env, &setup.contract_id);
+        client.submit(&id(&setup.env, 1), &setup.sender, &setup.recipient, &100);
+
+        setup.env.ledger().set_timestamp(86_442);
+        assert_eq!(
+            client.try_expire(&id(&setup.env, 1)),
+            Err(Ok(Error::LifecycleRejected))
+        );
+    }
+
+    #[test]
+    fn operations_fail_when_guard_not_configured() {
+        let env = Env::default();
+        let contract_id = env.register(PostageContract, ());
+        let client = PostageContractClient::new(&env, &contract_id);
+        
+        let admin = Address::generate(&env);
+        let token_contract = env.register_stellar_asset_contract_v2(admin.clone());
+        let asset = token_contract.address();
+        let token_admin = token::StellarAssetClient::new(&env, &asset);
+        let treasury = Address::generate(&env);
+        
+        client.initialize(&asset, &treasury, &100, &0, &86_400, &3_600);
+
+        env.mock_all_auths();
+        let sender = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        token_admin.mint(&sender, &1_000);
+
+        client.submit(&id(&env, 1), &sender, &recipient, &100);
+
+        env.ledger().set_timestamp(86_400);
+        assert_eq!(
+            client.try_expire(&id(&env, 1)),
+            Err(Ok(Error::GuardNotConfigured))
+        );
     }
 }
 
