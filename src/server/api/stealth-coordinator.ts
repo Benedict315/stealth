@@ -34,12 +34,12 @@ export class StealthCoordinator extends DurableObjectBase {
     const now = Date.now();
     const windowMilliseconds = windowSeconds * 1000;
     const timestamps = (await this.ctx.storage.get<number[]>(`counter:${key}`)) ?? [];
-    
+
     // Filter timestamps falling within the sliding window
     const filtered = [...timestamps, now].filter(
       (timestamp) => now - timestamp <= windowMilliseconds,
     );
-    
+
     await this.ctx.storage.put(`counter:${key}`, filtered);
     return filtered.length;
   }
