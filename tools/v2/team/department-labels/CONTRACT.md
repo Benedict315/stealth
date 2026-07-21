@@ -66,8 +66,7 @@ consumers must use the stable `error.code` for control flow.
 | `PERSISTENCE_FAILED`   | The injected repository rejected or threw while saving.            |
 | `INTERNAL_ERROR`       | An unexpected clock, ID generation, or execution failure occurred. |
 
-Input-specific errors include a dot-path `field`, such as
-`labels.0.color`.
+Input-specific errors include a dot-path `field`, such as `labels.0.color`.
 
 ## Service boundary
 
