@@ -54,8 +54,15 @@ export function createRouteHandler<
     let actorId: string | undefined;
 
     try {
-      // 1. Authentication based on authMode
-      const mode = config.authMode ?? "required";
+      // 1. Authentication based on authMode (new) and legacy requireAuth (old)
+      // Preserve backward compatibility: if `requireAuth` is explicitly set, it overrides `authMode`.
+      // Default mode is "public" (no authentication) to match original behavior where auth was optional.
+      let mode: AuthMode = "public";
+      if (typeof config.requireAuth === "boolean") {
+        mode = config.requireAuth ? "required" : "public";
+      } else if (config.authMode) {
+        mode = config.authMode;
+      }
       if (mode === "required") {
         actorId = requireActor(request);
       } else if (mode === "optional") {
