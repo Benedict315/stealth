@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   departmentLabelsService,
   createDepartmentLabelsService,
-} from "../services/execution.service";
+} from "../../tools/v2/team/department-labels/services/execution.service";
 import {
   duplicateDepartmentInput,
   duplicateLabelIdInput,
@@ -13,8 +13,8 @@ import {
   missingLabelNameInput,
   missingLabelsInput,
   successfulLabelsInput,
-} from "../fixtures/execution.fixtures";
-import type { DepartmentLabels } from "../types/contract";
+} from "../../tools/v2/team/department-labels/fixtures/execution.fixtures";
+import type { DepartmentLabels } from "../../tools/v2/team/department-labels/types/contract";
 
 function deterministicService(repository?: { save: (labels: DepartmentLabels) => Promise<void> }) {
   let sequence = 0;
