@@ -59,7 +59,7 @@ consumers must use the stable `error.code` for control flow.
 
 | Code                   | Meaning                                                            |
 | ---------------------- | ------------------------------------------------------------------ |
-| `INVALID_INPUT`        | A required scalar, label, or field value is missing or invalid.   |
+| `INVALID_INPUT`        | A required scalar, label, or field value is missing or invalid.    |
 | `DUPLICATE_LABEL_ID`   | Two labels use the same caller-supplied ID.                        |
 | `DUPLICATE_DEPARTMENT` | Two labels use the same department code.                           |
 | `INVALID_COLOR_FORMAT` | The color is not a valid hex color code (e.g., #FF5733).           |
