@@ -13,6 +13,7 @@ Fixtures are static, deterministic data samples used for testing and development
 Contains 5 sample email messages representing common support scenarios.
 
 **Structure:**
+
 ```json
 {
   "id": "email-001",
@@ -27,6 +28,7 @@ Contains 5 sample email messages representing common support scenarios.
 ```
 
 **Scenarios covered:**
+
 - Critical bug report (500 error)
 - Billing dispute (incorrect invoice)
 - Feature request (CSV export)
@@ -34,6 +36,7 @@ Contains 5 sample email messages representing common support scenarios.
 - Technical problem (dashboard widget)
 
 **Usage:**
+
 ```typescript
 import sampleEmails from "../fixtures/sample-emails.json";
 
@@ -41,7 +44,7 @@ import sampleEmails from "../fixtures/sample-emails.json";
 const emails = sampleEmails;
 
 // Find specific email
-const criticalBug = emails.find(e => e.subject.includes("500 error"));
+const criticalBug = emails.find((e) => e.subject.includes("500 error"));
 ```
 
 ### sample-tickets.json
@@ -49,6 +52,7 @@ const criticalBug = emails.find(e => e.subject.includes("500 error"));
 Contains 4 sample tickets representing different states and priorities.
 
 **Structure:**
+
 ```json
 {
   "id": "ticket-001",
@@ -67,35 +71,37 @@ Contains 4 sample tickets representing different states and priorities.
 ```
 
 **Status distribution:**
+
 - 2 open tickets
 - 1 in-progress ticket
 - 1 resolved ticket
 
 **Priority distribution:**
+
 - 1 critical
 - 2 high
 - 1 low
 
 **Category distribution:**
+
 - 1 bug
 - 1 billing
 - 1 feature-request
 - 1 support
 
 **Usage:**
+
 ```typescript
 import sampleTickets from "../fixtures/sample-tickets.json";
 
 // Filter by status
-const openTickets = sampleTickets.filter(t => t.status === "open");
+const openTickets = sampleTickets.filter((t) => t.status === "open");
 
 // Filter by priority
-const criticalTickets = sampleTickets.filter(t => t.priority === "critical");
+const criticalTickets = sampleTickets.filter((t) => t.priority === "critical");
 
 // Get resolved tickets with resolution time
-const resolvedTickets = sampleTickets.filter(t => 
-  t.status === "resolved" && t.resolution
-);
+const resolvedTickets = sampleTickets.filter((t) => t.status === "resolved" && t.resolution);
 ```
 
 ### team-members.json
@@ -103,6 +109,7 @@ const resolvedTickets = sampleTickets.filter(t =>
 Contains 5 sample team members with different roles.
 
 **Structure:**
+
 ```json
 {
   "id": "member-001",
@@ -113,6 +120,7 @@ Contains 5 sample team members with different roles.
 ```
 
 **Roles covered:**
+
 - Senior Support Engineer
 - Support Lead
 - Billing Specialist
@@ -120,17 +128,18 @@ Contains 5 sample team members with different roles.
 - Junior Support Engineer
 
 **Usage:**
+
 ```typescript
 import teamMembers from "../fixtures/team-members.json";
 
 // Find member by ID
-const member = teamMembers.find(m => m.id === "member-001");
+const member = teamMembers.find((m) => m.id === "member-001");
 
 // Filter by role
-const engineers = teamMembers.filter(m => m.role.includes("Engineer"));
+const engineers = teamMembers.filter((m) => m.role.includes("Engineer"));
 
 // Get all member IDs for assignment dropdown
-const memberIds = teamMembers.map(m => m.id);
+const memberIds = teamMembers.map((m) => m.id);
 ```
 
 ## Loading Fixtures in Tests
@@ -144,7 +153,16 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixtureDir = resolve(__dirname, "..", "..", "tools", "v2", "team", "mail-to-ticket-converter", "fixtures");
+const fixtureDir = resolve(
+  __dirname,
+  "..",
+  "..",
+  "tools",
+  "v2",
+  "team",
+  "mail-to-ticket-converter",
+  "fixtures",
+);
 
 function loadJSON(filename: string) {
   return JSON.parse(readFileSync(resolve(fixtureDir, filename), "utf-8"));
@@ -173,17 +191,20 @@ describe("My Test", () => {
 ## Fixture Data Characteristics
 
 ### Realistic but Sanitized
+
 - Email addresses use fictional domains (client.org, startup.io, designlab.com)
 - Names are generic but realistic
 - Scenarios represent real support workflows
 - No real credentials, tokens, or personal data
 
 ### Deterministic
+
 - All dates are fixed ISO-8601 timestamps
 - IDs follow predictable patterns (email-001, ticket-001, member-001)
 - Data relationships are consistent (email IDs match ticket emailId fields)
 
 ### Comprehensive Coverage
+
 - Multiple ticket statuses (open, in-progress, resolved, closed)
 - Multiple priority levels (critical, high, medium, low)
 - Multiple categories (bug, billing, feature-request, support, other)
@@ -217,6 +238,7 @@ When adding new test scenarios:
 ## Fixture Validation
 
 The test suite validates that:
+
 - All required fields are present
 - Field types are correct (strings, booleans, dates)
 - Enum values are valid (priority, status, category)
@@ -241,6 +263,7 @@ bun run test -- mail-to-ticket-converter
 ## Common Fixture Patterns
 
 ### Email with Attachments
+
 ```json
 {
   "hasAttachments": true
@@ -248,6 +271,7 @@ bun run test -- mail-to-ticket-converter
 ```
 
 ### High-Priority Bug
+
 ```json
 {
   "priority": "critical",
@@ -257,6 +281,7 @@ bun run test -- mail-to-ticket-converter
 ```
 
 ### Resolved Ticket with Resolution
+
 ```json
 {
   "status": "resolved",
@@ -265,6 +290,7 @@ bun run test -- mail-to-ticket-converter
 ```
 
 ### Assigned Ticket
+
 ```json
 {
   "assignedTo": "member-001"
@@ -274,16 +300,19 @@ bun run test -- mail-to-ticket-converter
 ## Troubleshooting
 
 ### Fixture Not Loading
+
 - Check file path is correct relative to test file
 - Ensure JSON is valid (no trailing commas, proper quotes)
 - Verify file encoding is UTF-8
 
 ### Type Errors
+
 - Ensure fixture structure matches TypeScript types in `types.ts`
 - Check that enum values are valid (priority, status, category)
 - Verify date strings are ISO-8601 format
 
 ### Missing References
+
 - Ensure emailId in tickets matches an email ID
 - Verify assignedTo matches a team member ID
 - Check that all referenced IDs exist in their respective fixtures

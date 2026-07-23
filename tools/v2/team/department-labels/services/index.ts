@@ -1,7 +1,4 @@
-export {
-  departmentLabelsService,
-  createDepartmentLabelsService,
-} from "./execution.service";
+export { departmentLabelsService, createDepartmentLabelsService } from "./execution.service";
 export type {
   DepartmentLabelsDependencies,
   DepartmentLabelsService,

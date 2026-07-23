@@ -4,7 +4,16 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixtureDir = resolve(__dirname, "..", "..", "tools", "v2", "team", "mail-to-ticket-converter", "fixtures");
+const fixtureDir = resolve(
+  __dirname,
+  "..",
+  "..",
+  "tools",
+  "v2",
+  "team",
+  "mail-to-ticket-converter",
+  "fixtures",
+);
 
 function loadJSON(filename: string) {
   return JSON.parse(readFileSync(resolve(fixtureDir, filename), "utf-8"));

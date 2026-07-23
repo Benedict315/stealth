@@ -47,6 +47,8 @@ export interface DepartmentLabel {
 export interface DepartmentLabels {
   id: string;
   createdBy: string;
+
+  
   createdAt: string;
   labels: DepartmentLabel[];
   correlationId?: string;

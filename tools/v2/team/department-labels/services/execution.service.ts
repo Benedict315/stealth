@@ -99,9 +99,7 @@ function defaultColor(): string {
 /**
  * Creates a non-UI executor with replaceable clock, id generation, and storage.
  */
-export function createDepartmentLabelsService(
-  dependencies: DepartmentLabelsDependencies = {},
-) {
+export function createDepartmentLabelsService(dependencies: DepartmentLabelsDependencies = {}) {
   const generateId = dependencies.generateId ?? defaultGenerateId;
   const now = dependencies.now ?? (() => new Date());
 
